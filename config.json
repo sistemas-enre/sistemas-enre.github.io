@@ -1,0 +1,18 @@
+{
+  "mapa": [
+    "https://servidor1.ejemplo.com/mapa",
+    "https://servidor2.ejemplo.com/mapa"
+  ],
+  "grafico": [
+    "https://servidor1.ejemplo.com/grafico",
+    "https://servidor2.ejemplo.com/grafico"
+  ],
+  "tabla-edn": [
+    "https://servidor1.ejemplo.com/tabla-edn",
+    "https://servidor2.ejemplo.com/tabla-edn"
+  ],
+  "tabla-eds": [
+    "https://servidor1.ejemplo.com/tabla-eds",
+    "https://servidor2.ejemplo.com/tabla-eds"
+  ]
+}
