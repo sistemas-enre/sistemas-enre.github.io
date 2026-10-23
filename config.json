@@ -1,18 +1,18 @@
 {
   "mapa": [
-    "https://servidor1.ejemplo.com/mapa",
-    "https://servidor2.ejemplo.com/mapa"
+    "https://cortes.enre.gov.ar/mapacortes/index.html",
+    "https://www.enre.gov.ar/mapaCortes/index.html"
   ],
   "grafico": [
-    "https://servidor1.ejemplo.com/grafico",
-    "https://servidor2.ejemplo.com/grafico"
+    "https://cortes.enre.gov.ar/UFS/index.html",
+    "https://www.enre.gov.ar/Graficos/UFS/index.html"
   ],
   "tabla-edn": [
-    "https://servidor1.ejemplo.com/tabla-edn",
-    "https://servidor2.ejemplo.com/tabla-edn"
+    "https://cortes.enre.gov.ar/paginacorte/tabla_cortes_edesur.html",
+    "https://www.enre.gov.ar/paginacorte/tabla_cortes_edesur.html"
   ],
   "tabla-eds": [
-    "https://servidor1.ejemplo.com/tabla-eds",
-    "https://servidor2.ejemplo.com/tabla-eds"
+    "https://cortes.enre.gov.ar/paginacorte/tabla_cortes_edenor.html",
+    "https://www.enre.gov.ar/paginacorte/tabla_cortes_edenor.html"
   ]
 }
