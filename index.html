@@ -131,7 +131,7 @@
         const timestamp = new Date().getTime(); 
         
         // Asigna la nueva URL con el parámetro único
-        url = url + "&v=" + timestamp;
+        url = url + "?v=" + timestamp;
         console.log("URL_NUEVA: ", url);
         
         iframe.src = url;
