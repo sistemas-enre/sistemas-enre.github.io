@@ -124,6 +124,16 @@
     function createIframe(url) {
       return new Promise((resolve, reject) => {
         const iframe = document.createElement('iframe');
+        console.log("URL: ", url);
+
+              
+        // Genera un número único basado en el tiempo actual (ej. ?v=1718239482)
+        const timestamp = new Date().getTime(); 
+        
+        // Asigna la nueva URL con el parámetro único
+        url = url + "&v=" + timestamp;
+        console.log("URL_NUEVA: ", url);
+        
         iframe.src = url;
         iframe.title = 'Reporte';
         iframe.allow = 'fullscreen';
