@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visor de Reportes</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #111;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    #iframe-container {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+    #status {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #eee;
+      background: #111;
+      z-index: 10;
+      text-align: center;
+      padding: 2rem;
+    }
+    #status.hidden {
+      display: none;
+    }
+    .spinner {
+      width: 42px;
+      height: 42px;
+      border: 3px solid #444;
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 1.5rem;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .error {
+      color: #ff6b6b;
+      max-width: 480px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div id="status">
+    <div class="spinner"></div>
+    <div id="status-text">Cargando reporte…</div>
+  </div>
+  <div id="iframe-container"></div>
+
+  <script>
+    // ====================== CONFIGURACIÓN ======================
+    const PARAM_NAME = 'reporte';           // ?reporte=mapa
+    const CONFIG_URL = './config.json';
+    const TIMEOUT_MS = 8000;               // tiempo máximo por intento de iframe
+    const FETCH_TIMEOUT_MS = 4500;         // timeout del chequeo de disponibilidad
+
+    // ===========================================================
+
+    const statusEl = document.getElementById('status');
+    const statusText = document.getElementById('status-text');
+    const container = document.getElementById('iframe-container');
+
+    function showStatus(msg, isError = false) {
+      statusEl.classList.remove('hidden');
+      statusText.textContent = msg;
+      statusText.className = isError ? 'error' : '';
+    }
+
+    function hideStatus() {
+      statusEl.classList.add('hidden');
+    }
+
+    /**
+     * Comprueba si el servidor responde (detecta fallos de red).
+     * Usa mode: 'no-cors' → solo falla cuando hay problemas de conectividad.
+     */
+    async function isServerAvailable(url) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+      try {
+        await fetch(url, {
+          method: 'HEAD',
+          mode: 'no-cors',
+          signal: controller.signal,
+          cache: 'no-store'
+        });
+        return true;
+      } catch (err) {
+        return false;
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    }
+
+    /**
+     * Crea un iframe e intenta detectar si fue bloqueado por
+     * X-Frame-Options o Content-Security-Policy (frame-ancestors).
+     */
+    function createIframe(url) {
+      return new Promise((resolve, reject) => {
+        const iframe = document.createElement('iframe');
+        iframe.src = url;
+        iframe.title = 'Reporte';
+        iframe.allow = 'fullscreen';
+        iframe.setAttribute('allowfullscreen', '');
+        iframe.style.cssText = 'width:100%;height:100%;border:none;';
+
+        let settled = false;
+
+        const cleanup = () => {
+          if (iframe.parentNode) {
+            iframe.parentNode.removeChild(iframe);
+          }
+        };
+
+        const fail = (reason) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeoutId);
+          cleanup();
+          reject(new Error(reason));
+        };
+
+        const success = () => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeoutId);
+          resolve(iframe);
+        };
+
+        // Timeout general
+        const timeoutId = setTimeout(() => {
+          fail('Timeout al cargar el iframe');
+        }, TIMEOUT_MS);
+
+        iframe.onload = () => {
+          // Pequeño delay para que el navegador termine de aplicar posibles bloqueos
+          setTimeout(() => {
+            if (settled) return;
+
+            try {
+              const win = iframe.contentWindow;
+              const loc = win.location.href;
+
+              // Si podemos leer la location y está en about:blank → casi seguro bloqueado
+              if (!loc || loc === 'about:blank' || loc === '') {
+                fail('Iframe bloqueado (X-Frame-Options / CSP frame-ancestors)');
+                return;
+              }
+
+              // Mismo origen con contenido → éxito
+              success();
+            } catch (err) {
+              // SecurityError = contenido cargado correctamente (cross-origin permitido)
+              if (
+                err.name === 'SecurityError' ||
+                /cross-origin|Blocked a frame/i.test(err.message)
+              ) {
+                success();
+              } else {
+                fail('Error al verificar el iframe: ' + err.message);
+              }
+            }
+          }, 150);
+        };
+
+        iframe.onerror = () => {
+          fail('Error de red al cargar el iframe');
+        };
+
+        container.appendChild(iframe);
+      });
+    }
+
+    /**
+     * Intenta cargar las URLs en orden hasta encontrar una que funcione.
+     */
+    async function tryLoadUrls(urls) {
+      for (let i = 0; i < urls.length; i++) {
+        const url = urls[i];
+        showStatus(`Intentando servidor ${i + 1} de ${urls.length}…`);
+
+        // 1. Chequeo rápido de disponibilidad de red
+        const available = await isServerAvailable(url);
+        if (!available) {
+          console.warn(`Servidor no disponible: ${url}`);
+          continue;
+        }
+
+        // 2. Intentar cargar en iframe + detección de bloqueo
+        try {
+          await createIframe(url);
+          hideStatus();
+          console.log(`Cargado correctamente: ${url}`);
+          return; // éxito → salimos
+        } catch (err) {
+          console.warn(`Falló la carga de ${url}:`, err.message);
+          container.innerHTML = ''; // limpiamos cualquier resto
+        }
+      }
+
+      // Ninguna URL funcionó
+      showStatus(
+        'No se pudo cargar el reporte desde ningún servidor disponible.\n' +
+        'Es posible que los servidores estén caídos o que bloqueen el embeber en iframe.',
+        true
+      );
+    }
+
+    /**
+     * Punto de entrada
+     */
+    async function main() {
+      const params = new URLSearchParams(window.location.search);
+      const reporte = params.get(PARAM_NAME)?.toLowerCase().trim();
+
+      if (!reporte) {
+        showStatus(
+          'Falta el parámetro "reporte".\nEjemplo: ?reporte=mapa',
+          true
+        );
+        return;
+      }
+
+      let config;
+      try {
+        const res = await fetch(CONFIG_URL, { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        config = await res.json();
+      } catch (err) {
+        showStatus('Error al cargar la configuración (config.json).', true);
+        console.error(err);
+        return;
+      }
+
+      const urls = config[reporte];
+      if (!urls || !Array.isArray(urls) || urls.length === 0) {
+        showStatus(`No existe configuración para el reporte "${reporte}".`, true);
+        return;
+      }
+
+      await tryLoadUrls(urls);
+    }
+
+    main();
+  </script>
+</body>
+</html>
